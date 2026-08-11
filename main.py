@@ -1,18 +1,16 @@
 import os
 import logging
+import threading
 from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
+from apscheduler.schedulers.background import BackgroundScheduler
 
-# تنظیمات لاگ‌گیری برای نمایش خطاها
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+# تنظیمات لاگ‌گیری
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# بخش وب‌سرور فلاسک برای راضی نگه داشتن Render
+# بخش وب‌سرور برای Render
 app = Flask(__name__)
-
 @app.route('/')
 def home():
     return "Bot is running!"
@@ -20,25 +18,31 @@ def home():
 def run_server():
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 
-# تابع پاسخ به دستور /start در تلگرام
+# تابعی که قرار است هر روز گزارش را بفرستد
+def send_daily_report(context):
+    # در اینجا ID چت خودتان را قرار دهید که قبلاً صحبت کردیم (5668005129)
+    CHAT_ID = "5668005129" 
+    bot = context.bot
+    # در اینجا می‌توانید متن گزارش خود را بنویسید
+    bot.send_message(chat_id=CHAT_ID, text="☀️ سلام! این گزارش روزانه شماست که به صورت خودکار ارسال شد.")
+
+# ثبت دستور start/
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("سلام! ربات شما با موفقیت روشن شد و آماده به کار است. 🎉")
+    await update.message.reply_text("سلام! ربات شما برای ارسال گزارش‌های خودکار آماده است. 🎉")
 
 if __name__ == '__main__':
-    import threading
-    # روشن کردن سرور فلاسک در پس‌زمینه
+    # روشن کردن سرور در پس‌زمینه
     t = threading.Thread(target=run_server)
     t.start()
 
-    # دریافت توکن از متغیرهای محیطی Render
     TOKEN = os.environ.get('TELEGRAM_TOKEN')
-    
-    # راه‌اندازی ربات با کتابخانه python-telegram-bot
     application = ApplicationBuilder().token(TOKEN).build()
-    
-    # ثبت دستور start/
     application.add_handler(CommandHandler('start', start))
-    
-    # شروع به کار ربات
-    print("Bot is starting...")
+
+    # تنظیم زمان‌بندی (هر روز ساعت 09:00 صبح)
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(send_daily_report, 'cron', hour=9, minute=0, args=[application])
+    scheduler.start()
+
+    print("Bot is starting with daily scheduler...")
     application.run_polling()
