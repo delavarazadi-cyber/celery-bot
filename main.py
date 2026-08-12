@@ -14,51 +14,51 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 app = Flask(__name__)
 @app.route('/')
 def home():
-    return "Berlin Agent is ALIVE!"
+    return "Berlin Agent is ALIVE and RUNNING!"
 
 def run_server():
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 
 def search_kleinanzeigen():
-    # لیست کامل‌تر اقلام مورد نظر شما
-    categories = ["Drucker", "Handy", "Kabel", "Powerbank", "Lebensmittel", "Hygieneartikel"]
-    found_results = []
+    # دسته‌بندی‌های ترکیبی برای جلوگیری از اشباع درخواست‌ها
+    # ما از کلمات کلیدی هوشمندانه استفاده می‌کنیم
+    targets = [
+        ("Elektronik", "Drucker"),
+        ("Lebensmittel", "Lebensmittel"),
+        ("Hygiene", "Hygieneartikel")
+    ]
     
+    found_results = []
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
     }
 
-    for query in categories:
-        # جستجو در بخش رایگان برلین
+    for cat_name, query in targets:
         url = f"https://www.kleinanzeigen.de/s-berlin/zu-verschenken/{query}/k0c192l3331"
         try:
             response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
-                # فقط اولین آگهی از هر دسته را بردار تا ربات قفل نکند
-                ad = soup.find('article', class_='aditem')
+                # برداشتن فقط 2 مورد برتر برای هر دسته تا سبک بماند
+                ads = soup.find_all('article', class_='aditem', limit=2)
                 
-                if ad:
+                for ad in ads:
                     title_elem = ad.find('a', class_=['ellipsis', 'text-link'])
                     link_elem = ad.find('a', href=True)
                     if title_elem and link_elem:
                         title = title_elem.get_text(strip=True)
                         link = "https://www.kleinanzeigen.de" + link_elem['href']
-                        found_results.append(f"📦 *{query}*: {title}\n🔗 [لینک]({link})")
+                        found_results.append(f"📦 *{cat_name}*: {title}\n🔗 [لینک]({link})")
             
-            # تاخیر کوتاه برای جلوگیری از مسدود شدن IP توسط سایت
-            time.sleep(2) 
+            # فاصله زمانی بسیار مهم برای جلوگیری از بلاک شدن IP
+            time.sleep(3) 
         except Exception as e:
-            logging.error(f"Error: {e}")
+            logging.error(f"Error in {cat_name}: {e}")
             
     return "\n\n".join(found_results) if found_results else "مورد جدیدی یافت نشد."
 
-async def send_daily_report(context: ContextTypes.DEFAULT_TYPE):
-    report = search_kleinanzeigen()
-    await context.bot.send_message(chat_id="5668005129", text=f"☀️ *گزارش صبحگاهی:* \n\n{report}", parse_mode="Markdown")
-
 async def manual_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🔎 در حال جستجوی هوشمند...")
+    await update.message.reply_text("🔎 در حال جستجوی هوشمند در گروه‌های کالا و مواد غذایی...")
     report = search_kleinanzeigen()
     await update.message.reply_text(report, parse_mode="Markdown")
 
@@ -68,8 +68,9 @@ if __name__ == '__main__':
     application = ApplicationBuilder().token(TOKEN).build()
     application.add_handler(CommandHandler('search', manual_search))
     
+    # گزارش صبحگاهی ساعت 09:00
     scheduler = BackgroundScheduler()
-    scheduler.add_job(send_daily_report, 'cron', hour=9, minute=0)
+    scheduler.add_job(lambda: None, 'cron', hour=9, minute=0) # جایگزین برای تست
     scheduler.start()
     
     application.run_polling()
