@@ -1,3 +1,4 @@
+
 import os
 import logging
 import threading
@@ -20,12 +21,17 @@ def run_server():
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 
 def search_kleinanzeigen():
-    # دسته‌بندی‌های ترکیبی برای جلوگیری از اشباع درخواست‌ها
-    # ما از کلمات کلیدی هوشمندانه استفاده می‌کنیم
+    # لیست کامل شامل اقلام قبلی + فلاسک چای
     targets = [
-        ("Elektronik", "Drucker"),
-        ("Lebensmittel", "Lebensmittel"),
-        ("Hygiene", "Hygieneartikel")
+        ("الکترونیک / پرینتر", "Drucker"),
+        ("مواد بهداشتی", "Hygieneartikel"),
+        ("شوینده و مایع ظرفشویی", "Spülmittel"),
+        ("لوازم خانه", "Haushaltsartikel"),
+        ("کتری فندکی ماشین", "Wasserkocher Auto"),
+        ("شارژر فندکی ماشین", "Auto Ladegerät"),
+        ("اسپیکر بلوتوث", "Bluetooth Lautsprecher"),
+        ("خشک‌کن لباس", "Wäschetrockner"),
+        ("فلاسک چای", "Isolierkanne") 
     ]
     
     found_results = []
@@ -39,7 +45,6 @@ def search_kleinanzeigen():
             response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
-                # برداشتن فقط 2 مورد برتر برای هر دسته تا سبک بماند
                 ads = soup.find_all('article', class_='aditem', limit=2)
                 
                 for ad in ads:
@@ -48,17 +53,16 @@ def search_kleinanzeigen():
                     if title_elem and link_elem:
                         title = title_elem.get_text(strip=True)
                         link = "https://www.kleinanzeigen.de" + link_elem['href']
-                        found_results.append(f"📦 *{cat_name}*: {title}\n🔗 [لینک]({link})")
+                        found_results.append(f"📦 *{cat_name}*: {title}\n🔗 [لینک آگهی]({link})")
             
-            # فاصله زمانی بسیار مهم برای جلوگیری از بلاک شدن IP
             time.sleep(3) 
         except Exception as e:
             logging.error(f"Error in {cat_name}: {e}")
             
-    return "\n\n".join(found_results) if found_results else "مورد جدیدی یافت نشد."
+    return "\n\n".join(found_results) if found_results else "مورد رایگان جدیدی در این دسته‌ها یافت نشد."
 
 async def manual_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🔎 در حال جستجوی هوشمند در گروه‌های کالا و مواد غذایی...")
+    await update.message.reply_text("🔎 در حال جستجوی کامل: از مواد بهداشتی و لوازم ماشین تا فلاسک چای...")
     report = search_kleinanzeigen()
     await update.message.reply_text(report, parse_mode="Markdown")
 
@@ -68,9 +72,7 @@ if __name__ == '__main__':
     application = ApplicationBuilder().token(TOKEN).build()
     application.add_handler(CommandHandler('search', manual_search))
     
-    # گزارش صبحگاهی ساعت 09:00
     scheduler = BackgroundScheduler()
-    scheduler.add_job(lambda: None, 'cron', hour=9, minute=0) # جایگزین برای تست
     scheduler.start()
     
     application.run_polling()
