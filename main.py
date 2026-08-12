@@ -21,17 +21,21 @@ def run_server():
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 
 def search_kleinanzeigen():
-    # لیست کامل شامل اقلام قبلی + فلاسک چای
+    # لیست بسیار جامع و کامل: شامل الکترونیک، مواد غذایی، بهداشتی و ماشین
     targets = [
-        ("الکترونیک / پرینتر", "Drucker"),
+        ("پرینتر و الکترونیک", "Drucker"),
+        ("پاوربانک و شارژر", "Powerbank"),
+        ("لوازم تحریر", "Schreibwaren"),
+        ("مواد غذایی و خشکبار", "Lebensmittel"),
+        ("بیسکویت و تنقلات", "Kekse"),
         ("مواد بهداشتی", "Hygieneartikel"),
         ("شوینده و مایع ظرفشویی", "Spülmittel"),
-        ("لوازم خانه", "Haushaltsartikel"),
-        ("کتری فندکی ماشین", "Wasserkocher Auto"),
-        ("شارژر فندکی ماشین", "Auto Ladegerät"),
+        ("لوازم خانه و آشپزخانه", "Haushaltsartikel"),
+        ("کتری فندکی و لوازم ماشین", "Wasserkocher Auto"),
+        ("شارژر فندکی و USB ماشین", "Auto Ladegerät"),
         ("اسپیکر بلوتوث", "Bluetooth Lautsprecher"),
         ("خشک‌کن لباس", "Wäschetrockner"),
-        ("فلاسک چای", "Isolierkanne") 
+        ("فلاسک چای", "Isolierkanne")
     ]
     
     found_results = []
@@ -53,16 +57,16 @@ def search_kleinanzeigen():
                     if title_elem and link_elem:
                         title = title_elem.get_text(strip=True)
                         link = "https://www.kleinanzeigen.de" + link_elem['href']
-                        found_results.append(f"📦 *{cat_name}*: {title}\n🔗 [لینک آگهی]({link})")
+                        found_results.append(f"📦 *{cat_name}*: {title}\n🔗 [لینک]({link})")
             
-            time.sleep(3) 
+            time.sleep(3) # وقفه برای جلوگیری از بن شدن
         except Exception as e:
             logging.error(f"Error in {cat_name}: {e}")
             
-    return "\n\n".join(found_results) if found_results else "مورد رایگان جدیدی در این دسته‌ها یافت نشد."
+    return "\n\n".join(found_results) if found_results else "مورد جدیدی یافت نشد."
 
 async def manual_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🔎 در حال جستجوی کامل: از مواد بهداشتی و لوازم ماشین تا فلاسک چای...")
+    await update.message.reply_text("🔎 در حال جستجوی کامل (الکترونیک، تحریر، غذا، بهداشتی و ماشین)...")
     report = search_kleinanzeigen()
     await update.message.reply_text(report, parse_mode="Markdown")
 
