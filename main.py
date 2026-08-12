@@ -20,35 +20,36 @@ def run_server():
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 
 def search_kleinanzeigen():
-    # لیست فشرده و بهینه شده (فقط مهم‌ترین‌ها)
+    # تمرکز روی محله‌های نزدیک: شارلوتن‌بورگ، میته و ویلمرزدورف
+    # کدهای پستی یا نام محله‌ها در لینک Kleinanzeigen اعمال می‌شوند
     targets = [
-        ("مواد غذایی", "Lebensmittel"),
-        ("بهداشتی", "Hygieneartikel"),
-        ("لوازم ماشین", "Auto Ladegerät"),
-        ("الکترونیک", "Drucker")
+        ("مواد غذایی (شارلوتن‌بورگ/میته)", "charlottenburg/Lebensmittel"),
+        ("بهداشتی (نزدیک شما)", "mitte/Hygieneartikel"),
+        ("لوازم ماشین (ویلمرزدورف)", "wilmersdorf/Auto+Ladegerät"),
+        ("الکترونیک (برلین)", "berlin/Drucker")
     ]
     
     found_results = []
     headers = {"User-Agent": "Mozilla/5.0"}
 
-    # فقط ۳ تا از لیست را بررسی می‌کنیم تا سرعت بالا بماند
-    for cat_name, query in targets[:3]: 
-        url = f"https://www.kleinanzeigen.de/s-berlin/zu-verschenken/{query}/k0c192l3331"
+    for cat_name, path in targets:
+        # جستجو بر اساس محله‌های مشخص شده در برلین
+        url = f"https://www.kleinanzeigen.de/s-c{path}/zu-verschenken/k0c192l3331"
         try:
             response = requests.get(url, headers=headers, timeout=5)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
-                ads = soup.find_all('article', class_='aditem', limit=1) # فقط ۱ مورد
+                ads = soup.find_all('article', class_='aditem', limit=1)
                 for ad in ads:
                     title = ad.find('a', class_=['ellipsis', 'text-link']).get_text(strip=True)
                     link = "https://www.kleinanzeigen.de" + ad.find('a', href=True)['href']
                     found_results.append(f"📦 *{cat_name}*: {title}\n🔗 [لینک]({link})")
         except: continue
             
-    return "\n\n".join(found_results) if found_results else "مورد جدیدی یافت نشد."
+    return "\n\n".join(found_results) if found_results else "مورد جدیدی در این محله‌ها یافت نشد."
 
 async def manual_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🔎 جستجو در حال انجام...")
+    await update.message.reply_text("🔎 جستجو در محله‌های نزدیک (شارلوتن‌بورگ، میته، ویلمرزدورف)...")
     report = search_kleinanzeigen()
     await update.message.reply_text(report, parse_mode="Markdown")
 
